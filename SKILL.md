@@ -189,15 +189,22 @@ L5/L6 use no persona — they are objective checks.
 
 ## Discipline on findings
 
-- **Never declare "correct".** Especially at L5 and for any math/physics finding, write
-  what you **checked** and what you did **not** check, instead of a bare "this is right".
+- **Never declare "correct".** Especially at L5 and for any math/physics finding, never
+  write "this is right" / "no issues" / "mathematics sound". Such a verdict makes the
+  author *stop looking* at a place you did not actually exhaust — the most dangerous thing a
+  consistency audit can do. Instead, record only what you **checked** and what you did
+  **NOT** check, and let those two fields carry the message. A "Correct Findings" or
+  "No issues" subsection is forbidden in the report.
 - Every finding is a structured row, not a paragraph of vague praise/criticism:
-  `id · location · issue · evidence · severity · suggested-fix · checked · NOT-checked`.
-  The `id` is a level prefix + number, e.g. `L5#SYM-012`, used as an anchor in Part B.
-  Severity is `critical` (touches the central claim or correctness) / `major` (a
-  supporting claim or important consistency problem) / `minor` (local, easily fixed).
-- For L0–L4 findings, also record `raised-by` (which personas), `agreement`
-  (consensus/split/single), and for a split, a one-line `divergence` giving both sides.
+  `id · location · issue · severity · raised_by · agreement · suggested-fix · checked ·
+  NOT-checked`. The `id` is a level/track prefix + number, e.g. `L5#SYM-012`, used as an
+  anchor in Part B. Severity is `critical` (touches the central claim or correctness) /
+  `major` (a supporting claim or important consistency problem) / `minor` (local, easily
+  fixed).
+- **`raised_by` records WHO** — the persona name(s), or `objective`. When a point comes from
+  several personas, list them all (`Tasaki, Lieb`). Also record `agreement`
+  (consensus/split/single/objective); for a split, a one-line `divergence` giving both
+  sides. The reader must always be able to see, per finding, who said it.
 - `suggested-fix` gives a direction only; the skill does not rewrite the manuscript.
 
 ## Output: the report
@@ -210,17 +217,33 @@ Produce a single report with these parts, in this order.
    MV/REF tracks (e.g. `FLAG MV→L0`, `FLAG MV→REF`, `FLAG REF→MV`, `FLAG REF→L0`). Example:
    `FLAG L5→L0 | Eq. (8) shows only existence of the estimator | the main text's
    "practical algorithm" may overreach | L5#SYM-012`.
-2. **Part A — by level, then by track (the primary record).** L0 → L6 first, each with its
-   findings rows; then the **MV** and **REF** track sections (when those tracks ran). This
-   is where the "why" lives. Within a level/track, order critical → major → minor. **Every
-   row in Part A must show `raised_by`** (the persona name for L0–L4 and for persona-driven
-   MV/REF findings, or "objective" for the L5/L6 floor and hygiene) as its own column —
-   never collapse it. After each persona-driven table (L0–L4, and the MV/REF rungs that use
-   personas), give the persona-agreement note: which points are CONSENSUS (several personas,
-   same point — a strong signal) and which are SPLIT (personas disagree — a real choice for
-   the author, show both sides, do not adjudicate). A reader must be able to see, per
-   finding, who raised it. MV ids are `MV#CLAIM/THM/DERIV-###`; REF ids are
-   `REF#HYG/PLACE/DEEP-###`.
+2. **Part A — one table per granularity (the primary record).** This is where the "why"
+   lives. Emit a **separate markdown table for each granularity**, in this order:
+   `L0`, `L1`, `L2`, `L3`, `L4`, `L5`, `L6`, then the MV rungs `MV#CLAIM`, `MV#THM`,
+   `MV#DERIV`, `MV#EQ` (when MV ran), then the REF axes `REF#HYG`, `REF#PLACE`, `REF#DEEP`
+   (when REF ran). Skip a table only if that granularity produced no findings (say so in
+   one line). Use these exact columns:
+
+   | id | location | issue | sev | who (raised_by) | agreement | suggested-fix | checked | NOT-checked |
+
+   Rules for the table:
+   - **`who` is mandatory and never collapsed.** List the *names* of everyone who raised the
+     point — e.g. `Tasaki, Lieb, Troyer` — not a count and not a bare "personas". For an
+     objective check (L5/L6 floor, REF hygiene, MV#EQ floor) write `objective`. When the
+     synthesizer MERGES the same finding from several persona files, the merged row's `who`
+     must list **all** of those personas together; that is the whole point of the column.
+   - **`agreement`** ∈ `consensus` (≥2 personas, same point — strong signal) / `split`
+     (personas disagree) / `single` / `objective`. For a `split`, add a one-line
+     `divergence:` note under the table giving both sides — do not adjudicate.
+   - Order rows critical → major → minor within each table (`sev` column).
+   - **Never write a row that just says something is "correct"** (see Discipline on
+     findings). A genuinely verified item is recorded by its `checked` / `NOT-checked`
+     content, not a "no issues / sound" row. Do NOT add "Correct Findings" subsections.
+   - Do not drop lower-level (L2–L4) findings into "propagates from above"; if a persona
+     file recorded a row, it must appear in its granularity's table (merge duplicates, but
+     keep the union of `who`). The per-level persona files under `.pr-review/findings/` are
+     the source of truth — read them all and lose nothing.
+   - ids: `L#…` per level; MV `MV#CLAIM/THM/DERIV/EQ-###`; REF `REF#HYG/PLACE/DEEP-###`.
 3. **Part B — fix-order index (where to start).** All findings re-sorted into fix order:
    claim/architecture → narrative flow → claim-math alignment → terminology → notation →
    derivation/math (incl. MV) → references (REF) → figures/captions → scientific English →
@@ -228,8 +251,11 @@ Produce a single report with these parts, in this order.
    L1#ARCH-002 (critical) → Part A L1`), not a copy of the finding.
 4. **Coverage — what was and was not checked.** Aggregate the NOT-checked notes so the
    author sees the gaps in the audit. Include the MV and REF tracks explicitly: which
-   equations/proofs were followed vs left unverified, and which cited works were read vs
-   could not be obtained. Do not let the report read as "everything was verified".
+   equations/proofs were followed vs left unverified, and which cited works were
+   web-verified vs not. Do not let the report read as "everything was verified". Note: at
+   REF `standard`, hygiene is supposed to be checked by *real web lookup* (not from
+   memory); if web verification was skipped or partial, that belongs in Coverage as a gap,
+   and the affected REF rows must say so in their `NOT-checked` field.
 
 The report is written to **`.pr-review/report.md`** by the synthesizer (do not rely on a
 human to save it afterward).
