@@ -257,6 +257,14 @@ Produce a single report with these parts, in this order.
      (collapse to one line); keep each cell short (put detail in `checked`/`NOT-checked`,
      not a paragraph). A cell that would carry a long derivation should summarize and point
      to the source finding file instead.
+   - **Self-verify the tables before saving (mandatory last step).** After assembling the
+     report, re-read every table row and check each one mechanically *before* writing the
+     file: exactly 9 columns (10 pipe characters) per row; no raw `|` inside a cell (must be
+     `abs(...)`, `card(...)`, or `\|`); no literal newline inside a row; no forbidden verdict
+     word. Fix any failing row, then save. The root-cause-collapse and severity re-judge
+     passes tend to push long math into the `issue` cell — exactly where stray `|` and column
+     drift creep in — so check those rows hardest. A broken table is a failure of this step,
+     not an acceptable rough edge.
    - ** id scheme is fixed — do not invent per-persona ids.** Every id is
      `<granularity>#<AXIS>-<NNN>`: levels `L0#…`–`L6#…` (axis = the aspect, e.g.
      `L0#CLAIM-001`, `L5#SYM-004`, `L6#STYLE-002`); MV `MV#CLAIM/THM/DERIV/EQ-NNN`; REF
