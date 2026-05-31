@@ -371,3 +371,47 @@ These were observed on the first real run and must not recur:
    "not checked" for nearly all derivations. Use Opus for the math, apply the embedded
    equation-audit checklist (in `references/math-verification.md`), run the MV track at
    `standard`/`deep`, and re-derive load-bearing steps. Do not rely on an external skill.
+
+## Running as a Workflow — use the bundled script
+
+The v2 execution form (dispatcher-split: read-the-whole-paper / evaluate-only-your-block)
+is a ready-to-run script at **`workflow/run.js`** in this skill. Invoking the skill does
+NOT auto-start a Workflow — you (the orchestrator) start it with the Workflow tool:
+
+1. Generate a timestamp yourself — Workflow scripts cannot call `Date.now()`. Shell:
+   `date +%Y-%m-%d-%H%M` (add seconds if two runs may start in the same minute).
+2. Call the Workflow tool with `{ scriptPath: "<this skill>/workflow/run.js", args: { … } }`.
+   `args`: `stamp` (REQUIRED, the timestamp), `tex` (manuscript path), `skill` (this skill's
+   root), `model` (default `haiku`), `synthModel` (default `opus`), `journal` (default
+   `PRB`), `math`/`ref` (`off`/`standard`/`deep`, default `standard`), `maxchunk` (default 6).
+
+The script: one **Dispatcher** reads the whole paper and returns persona selection + a
+per-level workmap (line ranges) + a glossary; L0/L1 run whole-paper × persona; L2–L6 fan
+out per workmap block × persona (each agent **reads the whole paper but evaluates only its
+block**); a **drift sweep** reduces the per-block extraction tables to cross-section drift;
+MV/REF tracks run per intensity; a **synthesizer** consolidates everything into one
+per-granularity-table `report.md`. Output lands in `.pr-review/runs/<stamp>/`.
+
+### Operational guidance (learned from real runs)
+
+- **Collect cheap, synthesize carefully — split the model.** Finding-collection agents work
+  well on Haiku; the synthesizer's discipline (unbroken tables, no "correct" verdicts,
+  actually *writing* the report file) was reliable only on **Opus**. The script defaults to
+  `model: haiku` for collection and `synthModel: opus` for synthesis. Override only with
+  reason. For a serious audit, raise the collection model too.
+- **Some rules are structural (models obey them), some are discipline (they don't).** id
+  scheme `<granularity>#<AXIS>-NNN` held up even on Haiku. But the no-raw-`|`-in-cells rule,
+  the never-declare-correct rule, and "actually write the file" were only honored reliably
+  on Opus. Treat the synthesizer model as the quality gate for the *report*, not the
+  *findings*.
+- **Subagent Write may be blocked.** In some harnesses subagents cannot use the Write tool
+  and must fall back to a shell heredoc to create files — the prompts allow for this. If a
+  run leaves `findings/` populated but no `report.md`, just re-run the synthesizer alone
+  pointed at that run dir (read all of `findings/`, write `report.md`). No need to redo the
+  whole audit.
+- **Never let two runs share a `findings/`.** Always pass a fresh `stamp`. (Two concurrent
+  runs writing the same directory will overwrite each other — observed and the reason the
+  per-run dir exists.)
+- **Contamination guard.** Pass only paths and settings in `args`. Never inject the paper's
+  topic, claims, notation, prior findings, or the surrounding conversation — every agent
+  rediscovers the paper by reading it. This keeps the audit a true test of the skill.
