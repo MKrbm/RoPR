@@ -24,6 +24,11 @@ plus a `\bibliography{...}`/`thebibliography` block — read it, and read **ever
   citations, correct and complete bib fields, journal-over-arXiv), **verified by real web
   lookup** (§ Verifying bib entries on the web), *and* placement (each citation in the
   right place; our description of a cited work matches what it actually says).
+  **Every entry must be web-verified — no sampling, no "representative subset".** A single
+  agent runs out of budget and silently checks only a handful (observed: 7 of ~70); when
+  running this track, split the bibliography into batches so that, across agents, *all*
+  entries are covered. Any entry not actually looked up goes in `NOT-checked`, never quietly
+  skipped.
 - **deep** — additionally read the cited work itself (fetch the arXiv/journal version via
   `WebFetch`/`WebSearch` when not local) and, for any result or mathematics we *borrow*,
   evaluate whether that borrowed result actually applies to our setting. This is the

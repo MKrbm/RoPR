@@ -415,3 +415,9 @@ per-granularity-table `report.md`. Output lands in `.pr-review/runs/<stamp>/`.
 - **Contamination guard.** Pass only paths and settings in `args`. Never inject the paper's
   topic, claims, notation, prior findings, or the surrounding conversation — every agent
   rediscovers the paper by reading it. This keeps the audit a true test of the skill.
+- **REF must cover every entry — split it too.** A single REF agent web-verifying the whole
+  bibliography runs out of budget and silently samples (observed: 7 of ~70 entries). The
+  script's REF phase therefore runs a REF-dispatcher that batches the bibliography (≈8 keys
+  per batch via `refbatch`) and chunks the cite sites, then fans out so that *every* entry
+  is web-verified and every cite site's placement is checked. Tune `refbatch` for very large
+  bibliographies.

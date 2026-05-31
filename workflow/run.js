@@ -146,10 +146,30 @@ if (MATH !== 'off') {
 
 phase('REF')
 if (REF !== 'off') {
-  const deep = REF==='deep' ? ' Additionally (deep): fetch and read borrowed references and check whether their assumptions/regime apply to this paper; FLAG REF->MV / REF->L0 when a borrowed result does not clearly apply.' : ''
-  await agent(
-    `${common}\n\nREFERENCE-VERIFICATION (REF) track, intensity ${REF.toUpperCase()}. Read ${SKILL}/references/reference-check.md and follow it. STANDARD = hygiene (verified by REAL WEB LOOKUP — use WebSearch/WebFetch; do NOT trust memory) + placement. Hygiene: every claim needing a citation has one; no duplicate/unused entries; bib fields correct; published journal version over arXiv. TRAPS: arXiv may show only an OLD version while a journal version exists; titles can DIFFER between arXiv and journal (mismatch alone is not a different paper — identify by authors+year+content). Unconfirmable -> NOT-checked. Placement: each citation supports its specific sentence; characterization of cited works faithful; priority/novelty claims consistent.${deep} Read .bbl/.bib and every \\cite site in ${TEX}. Write findings to ${FIND}/REF-track.md (one-line rows, ids REF#HYG-NNN/REF#PLACE-NNN/REF#DEEP-NNN, raised_by=objective; FLAG REF->MV/REF->L0 at top; end Coverage: how many entries web-verified vs not). No raw "|" in cells. Return <=6 lines.`,
-    {model:M,phase:'REF',label:'REF:'+REF})
+  // REF must verify EVERY bib entry by real web lookup — a single agent runs out of budget
+  // and samples (observed: 7/70 verified). So split: a REF-dispatch enumerates the
+  // bibliography into batches + the cite sites into placement chunks, then we fan out so
+  // each batch web-verifies ALL of its entries (no sampling).
+  const REFBATCH = A.refbatch || 8
+  const refPlan = await agent(
+    `${common}\n\nYou are the REF DISPATCHER. Read the bibliography (.bbl/.bbl next to ${TEX}, and the .bib it comes from) and every \\cite site in ${TEX}. Return:\n1) batches: the FULL list of bibliography entry keys, partitioned into batches of about ${REFBATCH} keys each (cover EVERY entry; do not drop any). Each batch = {label, keys:[...]}. \n2) placement_chunks: the \\cite sites grouped by section into chunks to check placement, each = {label, lines:[start,end]}.\nReturn ONLY the structured object. Do not verify anything yet.`,
+    { model: M, phase: 'REF', label: 'REF:dispatch', schema: {
+      type:'object', properties:{
+        batches:{type:'array',items:{type:'object',properties:{label:{type:'string'},keys:{type:'array',items:{type:'string'}}},required:['label','keys'],additionalProperties:false}},
+        placement_chunks:{type:'array',items:{type:'object',properties:{label:{type:'string'},lines:{type:'array',items:{type:'number'}}},required:['label','lines'],additionalProperties:false}},
+      }, required:['batches','placement_chunks'], additionalProperties:false } }
+  )
+  const batches = (refPlan.batches||[]).filter(b=>b && (b.keys||[]).length)
+  const pchunks = (refPlan.placement_chunks||[])
+  log(`REF: ${batches.length} hygiene batches (${batches.reduce((n,b)=>n+(b.keys||[]).length,0)} keys), ${pchunks.length} placement chunks`)
+  const deep = REF==='deep' ? ' DEEP: additionally fetch and read each borrowed reference in your batch and check whether its assumptions/regime apply to THIS paper; FLAG REF->MV / REF->L0 when a borrowed result does not clearly apply; ids REF#DEEP-NNN.' : ''
+  const hygPrompt = (b)=>`${common}\n\nREFERENCE HYGIENE (REF), intensity ${REF.toUpperCase()}. Read ${SKILL}/references/reference-check.md. Your batch is these bib keys (verify EVERY ONE — NO sampling, NO "representative subset"; if you cannot finish, still attempt all and mark the unfinished ones NOT-checked): ${(b.keys||[]).join(', ')}. For EACH key: look it up on the web (WebSearch/WebFetch; do NOT trust memory) and check authors/title/journal/volume/year/DOI; flag duplicates, unused entries, malformed types, and arXiv-where-a-journal-version-exists. TRAPS: arXiv may show only an OLD version though a journal version exists; titles can DIFFER between arXiv and journal (a mismatch alone is not a different paper — identify by authors+year+content). Unconfirmable after a real attempt -> NOT-checked (say why).${deep} Write findings to ${FIND}/REF-hyg-${(b.label||'batch').replace(/[^A-Za-z0-9]+/g,'_').slice(0,24)}.md (one-line rows, ids REF#HYG-NNN, raised_by=objective; out-of-batch facts as FLAG at top; no raw "|" in cells). End with a one-line Coverage: which of your keys were web-verified vs NOT. Return <=5 lines.`
+  const placePrompt = (c)=>{const range=`${c.lines?.[0]}-${c.lines?.[1]}`; return `${common}\n\nREFERENCE PLACEMENT (REF). Read ${SKILL}/references/reference-check.md. READ the whole paper for context, but EVALUATE only the \\cite sites in lines ${range} ("${c.label}"). For each citation there: does it support the SPECIFIC sentence it is attached to; is our characterization of the cited work faithful ("Ref [x] proved Y", "following [x]"); are priority/novelty claims consistent with the literature. Use the web where needed to confirm what a cited work actually says. Write findings to ${FIND}/REF-place-${range}.md (one-line rows, ids REF#PLACE-NNN, raised_by=objective; no raw "|" in cells). Return <=5 lines.`}
+  const tasks = [
+    ...batches.map(b=>()=>agent(hygPrompt(b),{model:M,phase:'REF',label:`REF:hyg:${(b.label||'').slice(0,14)}`})),
+    ...pchunks.map(c=>()=>agent(placePrompt(c),{model:M,phase:'REF',label:`REF:place:${(c.label||'').slice(0,12)}`})),
+  ]
+  if (tasks.length) await parallel(tasks); else log('REF: dispatcher returned no batches')
 } else log('REF: off')
 
 phase('Synthesize')
