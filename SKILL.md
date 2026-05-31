@@ -198,9 +198,15 @@ L5/L6 use no persona — they are objective checks.
 - Every finding is a structured row, not a paragraph of vague praise/criticism:
   `id · location · issue · severity · raised_by · agreement · suggested-fix · checked ·
   NOT-checked`. The `id` is a level/track prefix + number, e.g. `L5#SYM-012`, used as an
-  anchor in Part B. Severity is `critical` (touches the central claim or correctness) /
-  `major` (a supporting claim or important consistency problem) / `minor` (local, easily
-  fixed).
+  anchor in Part B. **Severity is calibrated, not generous** — most findings are `minor`:
+  - `critical` — the central claim or a correctness/validity failure: if unaddressed the
+    paper is wrong or its headline claim does not hold. Expect only a handful.
+  - `major` — a *supporting* claim's evidence, or a consistency problem a referee would
+    likely raise. Reserve it; if unsure between major and minor, it is **minor**.
+  - `minor` — local, mechanically fixable (wording, a missing definition, notation, a
+    one-line gap). The default.
+  Do not inflate severity to signal "please read this": a wall of `major` rows defeats
+  triage and is itself a calibration failure.
 - **`raised_by` records WHO** — the persona name(s), or `objective`. When a point comes from
   several personas, list them all (`Tasaki, Lieb`). Also record `agreement`
   (consensus/split/single/objective); for a split, a one-line `divergence` giving both
@@ -258,6 +264,13 @@ Produce a single report with these parts, in this order.
      merges so each id is unique across the whole report (the raw per-chunk files may use
      loose local labels like `C1`/`M2`; normalize them — never emit `C1`/`M2`/`S4` in the
      final report).
+   - **Collapse one root cause to ONE primary finding.** When a single underlying problem
+     surfaces at several levels/tracks (e.g. a theorem proved under an assumption that "does
+     not generally hold" appears at L0 as claim overreach, at L1 as architecture, at L4 as a
+     buried proof assumption, and in MV), record it ONCE as the primary finding at the level
+     where the *fix* lives (usually the highest), and reference it from the others by id
+     (`see L0#CLAIM-002`) instead of repeating the full row. The reader should meet a root
+     cause once, not count it six times; the cross-level relationship still lives in a flag.
 3. **Part B — fix-order index (where to start).** All findings re-sorted into fix order:
    claim/architecture → narrative flow → claim-math alignment → terminology → notation →
    derivation/math (incl. MV) → references (REF) → figures/captions → scientific English →
