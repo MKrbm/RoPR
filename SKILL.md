@@ -239,11 +239,25 @@ Produce a single report with these parts, in this order.
    - **Never write a row that just says something is "correct"** (see Discipline on
      findings). A genuinely verified item is recorded by its `checked` / `NOT-checked`
      content, not a "no issues / sound" row. Do NOT add "Correct Findings" subsections.
+     This also forbids verdict words inside a cell — no `CHECK PASSED`, `correct`,
+     `sound`, `valid`, `no issue` in any field; state what was checked instead.
    - Do not drop lower-level (L2–L4) findings into "propagates from above"; if a persona
      file recorded a row, it must appear in its granularity's table (merge duplicates, but
-     keep the union of `who`). The per-level persona files under `.pr-review/findings/` are
+     keep the union of `who`). The per-level persona files under the run's `findings/` are
      the source of truth — read them all and lose nothing.
-   - ids: `L#…` per level; MV `MV#CLAIM/THM/DERIV/EQ-###`; REF `REF#HYG/PLACE/DEEP-###`.
+   - **Keep tables from breaking.** A markdown table row must be ONE line with exactly the
+     9 columns above. Inside any cell: never use a raw `|` (write the math word, e.g.
+     "abs(W(c))" instead of `|W(c)|`, or escape it as `\|`); never use a literal newline
+     (collapse to one line); keep each cell short (put detail in `checked`/`NOT-checked`,
+     not a paragraph). A cell that would carry a long derivation should summarize and point
+     to the source finding file instead.
+   - ** id scheme is fixed — do not invent per-persona ids.** Every id is
+     `<granularity>#<AXIS>-<NNN>`: levels `L0#…`–`L6#…` (axis = the aspect, e.g.
+     `L0#CLAIM-001`, `L5#SYM-004`, `L6#STYLE-002`); MV `MV#CLAIM/THM/DERIV/EQ-NNN`; REF
+     `REF#HYG/PLACE/DEEP-NNN`; drift `L5#DRIFT-NNN`. The synthesizer RENUMBERS as it
+     merges so each id is unique across the whole report (the raw per-chunk files may use
+     loose local labels like `C1`/`M2`; normalize them — never emit `C1`/`M2`/`S4` in the
+     final report).
 3. **Part B — fix-order index (where to start).** All findings re-sorted into fix order:
    claim/architecture → narrative flow → claim-math alignment → terminology → notation →
    derivation/math (incl. MV) → references (REF) → figures/captions → scientific English →
@@ -257,8 +271,25 @@ Produce a single report with these parts, in this order.
    memory); if web verification was skipped or partial, that belongs in Coverage as a gap,
    and the affected REF rows must say so in their `NOT-checked` field.
 
-The report is written to **`.pr-review/report.md`** by the synthesizer (do not rely on a
-human to save it afterward).
+### Where output goes — a per-run timestamped directory
+
+Every run writes into its own folder so runs never overwrite each other (two runs sharing
+one `findings/` is a real failure mode). The run directory is:
+
+```
+.pr-review/runs/<YYYY-MM-DD-HHMM>/
+    findings/      ← every level/track/persona agent writes its file here
+    report.md      ← the synthesizer writes the final report here
+```
+
+- Pick `<YYYY-MM-DD-HHMM>` once at the start of the run (the orchestrator decides it and
+  passes it to every agent — Workflow scripts cannot generate timestamps themselves, so the
+  caller supplies it). Use seconds (`-HHMMSS`) if two runs may start in the same minute.
+- All paths elsewhere in this skill that say `.pr-review/findings/…` or `.pr-review/report.md`
+  mean **inside the current run directory** (`.pr-review/runs/<stamp>/findings/…` and
+  `.pr-review/runs/<stamp>/report.md`).
+- The synthesizer writes `report.md` itself (do not rely on a human to save it afterward),
+  reading only the `findings/` inside the same run directory — never a sibling run's.
 
 ## Run procedure (v1, single context)
 
@@ -330,7 +361,9 @@ the only output. Pass the user-chosen model to every `agent()` call.
 ## Known v1 implementation pitfalls (fix these when running)
 
 These were observed on the first real run and must not recur:
-1. **Report not written to disk.** The audit must write `.pr-review/report.md` itself.
+1. **Report not written to disk.** The audit must write `report.md` (inside the run dir)
+   itself. Also: never let two runs share a `findings/` dir — use the per-run timestamped
+   directory above, or a finished run's files get overwritten by the next.
 2. **`raised_by` lost in synthesis.** The synthesizer dropped the persona column, so the
    report read as if everyone agreed. Persist per-persona findings files AND keep the
    `raised_by` column in Part A.

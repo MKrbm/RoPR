@@ -146,5 +146,6 @@ Findings with ids `MV#CLAIM-###`, `MV#THM-###`, `MV#DERIV-###` (equation/type fo
 stay on the L5 floor). Same row schema as the rest of the audit
 (`id · location · issue · evidence · severity · suggested-fix · checked · NOT-checked`),
 with `checked`/`NOT-checked` mandatory and `raised_by` set to the persona (or `objective`
-for the floor). Write to `.pr-review/findings/MV-<persona-or-axis>.md`. Flag prose↔math
+for the floor). Write to `<run-dir>/findings/MV-<persona-or-axis>.md` (the run dir is the
+current `.pr-review/runs/<YYYY-MM-DD-HHMM>/` chosen for this run). Flag prose↔math
 overreaches to L0/L2 and borrowed-result dependencies to REF.

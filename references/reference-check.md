@@ -94,4 +94,5 @@ theorem really apply?). Record `raised_by`; consensus vs split as usual.
 Findings with ids `REF#HYG-###` (hygiene), `REF#PLACE-###` (placement), `REF#DEEP-###`
 (deep-read). Same row schema (`id · location · issue · evidence · severity · suggested-fix
 · checked · NOT-checked`), with `checked`/`NOT-checked` mandatory and `raised_by` set.
-Write to `.pr-review/findings/REF-<axis>.md`.
+Write to `<run-dir>/findings/REF-<axis>.md` (the run dir is the current
+`.pr-review/runs/<YYYY-MM-DD-HHMM>/` chosen for this run).
