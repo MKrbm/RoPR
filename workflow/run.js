@@ -39,10 +39,15 @@ export const meta = {
   ],
 }
 
-const A = (args && typeof args === 'object') ? args : {}
+// args may arrive as an object OR as a JSON string (some callers stringify it) — accept both.
+let A = {}
+if (args && typeof args === 'object') A = args
+else if (typeof args === 'string' && args.trim()) { try { A = JSON.parse(args) } catch (e) { A = {} } }
 const STAMP = (A.stamp && String(A.stamp).trim()) || 'unstamped'
 const SKILL = A.skill || '/home/user/.claude/skills/pr-review'
-const TEX = A.tex || '/home/user/project/ffneg/main.tex'
+// tex is REQUIRED — this skill is paper-agnostic; the caller must pass the manuscript path.
+if (!A.tex) throw new Error('pr-review workflow: args.tex (absolute path to the manuscript .tex) is required')
+const TEX = A.tex
 const M = A.model || 'haiku'
 const SYNTH_M = A.synthModel || 'opus'
 const JOURNAL = A.journal || 'PRB'

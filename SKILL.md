@@ -402,9 +402,21 @@ NOT auto-start a Workflow — you (the orchestrator) start it with the Workflow 
 1. Generate a timestamp yourself — Workflow scripts cannot call `Date.now()`. Shell:
    `date +%Y-%m-%d-%H%M` (add seconds if two runs may start in the same minute).
 2. Call the Workflow tool with `{ scriptPath: "<this skill>/workflow/run.js", args: { … } }`.
-   `args`: `stamp` (REQUIRED, the timestamp), `tex` (manuscript path), `skill` (this skill's
-   root), `model` (default `haiku`), `synthModel` (default `opus`), `journal` (default
-   `PRB`), `math`/`ref` (`off`/`standard`/`deep`, default `standard`), `maxchunk` (default 6).
+   This is a **dynamic Workflow** (scriptPath, not a saved named workflow); you may edit
+   `workflow/run.js` and re-invoke it freely.
+   `args` (pass as a real JSON object; the script also tolerates a JSON string):
+   - `tex` — **REQUIRED**, absolute path to the manuscript `.tex`. The skill is
+     paper-agnostic and carries no default manuscript; omitting `tex` throws.
+   - `stamp` — **REQUIRED in practice**, the timestamp `date +%Y-%m-%d-%H%M` (else output
+     lands in `runs/unstamped/` and a second run overwrites it).
+   - `skill` (this skill's root), `model` (default `haiku`), `synthModel` (default `opus`),
+     `journal` (default `PRB`), `math`/`ref` (`off`/`standard`/`deep`, default `standard`),
+     `maxchunk` (default 6). For an all-Opus audit pass `model: "opus"` (and `synthModel`
+     stays `opus`).
+   **Caution:** pass `args` as an object — if it is sent as a string and the script could
+   not parse it, every default kicks in (model→haiku, stamp→unstamped), silently giving a
+   non-Opus run in the wrong directory. Verify the run dir and model note in the report
+   header afterward.
 
 The script: one **Dispatcher** reads the whole paper and returns persona selection + a
 per-level workmap (line ranges) + a glossary; L0/L1 run whole-paper × persona; L2–L6 fan
