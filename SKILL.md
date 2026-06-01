@@ -257,6 +257,14 @@ Produce a single report with these parts, in this order.
      (collapse to one line); keep each cell short (put detail in `checked`/`NOT-checked`,
      not a paragraph). A cell that would carry a long derivation should summarize and point
      to the source finding file instead.
+   - **Write math as inline LaTeX `$...$`.** Any symbol or expression in a cell goes inside
+     `$...$` so it renders cleanly and does not corrupt the table: write `$\eta'$`,
+     `$E_{v,2}$`, `$\lambda^+(G)$`, `$|W(c)|$` (bars are safe *inside* `$...$`),
+     `$N_d^+/N_d$`, `$O(1/N)$`. A bare `_`, `^`, `<`, `>` or `*` in a cell is markdown/HTML
+     active and silently breaks rendering (italic runs, phantom tags); wrapping it in math
+     fixes that. A raw `|` is still forbidden *outside* `$...$`; inside math it is fine.
+     Plain words (section names, prose) stay as-is. The HTML render step (see "Rendering the
+     report") typesets these `$...$` spans with MathJax.
    - **Self-verify the tables before saving (mandatory last step).** After assembling the
      report, re-read every table row and check each one mechanically *before* writing the
      file: exactly 9 columns (10 pipe characters) per row; no raw `|` inside a cell (must be
@@ -342,12 +350,48 @@ one `findings/` is a real failure mode). The run directory is:
 4. **Synthesize:** the dedicated synthesizer reads `.pr-review/findings/` and assembles
    Flags, Part A (levels then MV/REF tracks, with `raised_by` preserved), Part B, Coverage
    into `.pr-review/report.md`.
+5. **Render to HTML (see "Rendering the report" below):** run the bundled renderer so the
+   tables and the `$...$` math display correctly in a browser.
+
+## Rendering the report (HTML + MathJax)
+
+The report is a large set of pipe tables whose cells carry math. Even with the table
+hygiene above, raw math text (`_`, `^`, `<`, `*`) is markdown/HTML-active and renders
+poorly; and Markdown does not typeset equations. So after `report.md` is written, render it:
+
+```
+node scripts/render-report.mjs <path>/report.md   # writes <path>/report.html
+```
+
+The bundled `scripts/render-report.mjs` (no external dependencies) parses the tables
+itself, HTML-escapes every cell so column structure can never break, protects `$...$` /
+`$$...$$` spans, and loads MathJax (CDN) so the inline LaTeX from the table-hygiene rule is
+typeset in the browser. Open `report.html`. (Math written as `$...$` per the hygiene rule
+renders as proper equations; any bare-text math still shows, just unstyled — so prefer
+`$...$`.) If there is no network for the CDN, the page still shows correct tables; only the
+equation typesetting is skipped.
 
 ## Verifying the mathematics, not just auditing consistency (L5 floor + MV track)
 
 The mathematics is where errors matter most, and an audit that only records "not checked"
 for every derivation is failing its job. Two layers handle this, and PR-review is
 **self-contained** — neither calls any other skill:
+- **L5 floor (objective, always runs):** formal consistency of each equation — the
+  multi-axis check above. Apply the **embedded equation-audit checklist** in
+  `references/math-verification.md` (cherry-picked from `tex-formula-audit`: bookkeeping of
+  index roles, range complementarity, smallest non-trivial substitution, mechanical source
+  translation, downstream propagation) to load-bearing or restated/cited equations. Do
+  **not** invoke an external skill.
+- **MV track (when math intensity is `standard`/`deep`):** actually *follow* and, at
+  `deep`, *prove* the steps, across all granularities, with personas — see
+  `references/math-verification.md`. Be adversarially skeptical: try to refute steps that
+  look fine.
+- Either way, say specifically what you verified and what you could not (e.g. "checked the
+  algebra of Eq. (12)→(13); did NOT verify the cited bound's constant"). checked/NOT-checked
+  is an honest account of a *real* verification attempt, not an excuse to skip the math.
+- Prefer a strong model (Opus) for the math; weak models under-verify it. The setup model
+  question (setup item 1) exists partly for this.
+
 ## Running it: single context by default; the skill is the authority
 
 This skill runs **in a single context** by default — the "Run procedure (v1, single
@@ -364,6 +408,18 @@ the skill stays authoritative and the run stays honest:
   the level definitions, severity rules, or output format into the spawning prompt — that
   freezes a stale copy and loses the skill's nuance. Pass only: which manuscript, which
   journal, which slice of the work, and where to write.
+- **Slice by stable anchors; let each agent gather its own context.** Identify each
+  subagent's unit by a **stable textual anchor** — the section/subsection heading and its
+  `\label` (e.g. `app:trace-distance — "Trace Distance Bound"`) — never a raw line-number
+  range. Tell the agent which unit is *its to evaluate*, then let it **decide for itself what
+  else to read** (the notation section, a prerequisite derivation, the main-text claim it
+  supports, a cited result) by reading the manuscript. Do **not** pre-compute a line-range
+  "workmap" or a hand-written "dependencies" list and feed them in: line numbers go stale the
+  instant the author edits the file — an edit mid-run silently desyncs every downstream range
+  — and a fixed dependency list both biases the agent and misses context the structure
+  actually needs. Build the chunk list from the manuscript's own section/`\label` list so
+  coverage has no gaps. (The level/track *decisions* carried downward per "How levels pass
+  information" are still passed as decisions — that is conclusions, not reading assignments.)
 - **Contamination guard.** Pass only paths and settings to a subagent — never the paper's
   topic, claims, notation, prior findings, or this conversation. Every agent rediscovers the
   paper by reading it; that keeps the audit a true test.
