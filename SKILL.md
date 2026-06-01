@@ -348,109 +348,39 @@ one `findings/` is a real failure mode). The run directory is:
 The mathematics is where errors matter most, and an audit that only records "not checked"
 for every derivation is failing its job. Two layers handle this, and PR-review is
 **self-contained** — neither calls any other skill:
-- **L5 floor (objective, always runs):** formal consistency of each equation — the
-  multi-axis check above. Apply the **embedded equation-audit checklist** in
-  `references/math-verification.md` (cherry-picked from `tex-formula-audit`: bookkeeping of
-  index roles, range complementarity, smallest non-trivial substitution, mechanical source
-  translation, downstream propagation) to load-bearing or restated/cited equations. Do
-  **not** invoke an external skill.
-- **MV track (when math intensity is `standard`/`deep`):** actually *follow* and, at
-  `deep`, *prove* the steps, across all granularities, with personas — see
-  `references/math-verification.md`. Be adversarially skeptical: try to refute steps that
-  look fine.
-- Either way, say specifically what you verified and what you could not (e.g. "checked the
-  algebra of Eq. (12)→(13); did NOT verify the cited bound's constant"). checked/NOT-checked
-  is an honest account of a *real* verification attempt, not an excuse to skip the math.
-- Prefer a strong model (Opus) for the math; weak models under-verify it. The setup model
-  question (setup item 1) exists partly for this.
+## Running it: single context by default; the skill is the authority
 
-## Choosing the model (recap)
+This skill runs **in a single context** by default — the "Run procedure (v1, single
+context)" above is the canonical way to execute it. There is **no bundled workflow script**;
+the skill itself (this file plus `references/` and `personas/`) is the single source of
+truth. Read it in full and apply it directly.
 
-Per setup item 1, ask the user which model to run on. Mathematics-heavy levels (L5) and
-claim-judgment (L0) benefit most from Opus; surface (L6) tolerates a lighter model. When
-running as a Workflow, pass the chosen model to every `agent()` call explicitly — do not
-let agents fall back to a default light model, or the math verification (above) will be
-weak.
+If a manuscript is large and you (the orchestrator) choose to **parallelize** — by spawning
+subagents per level/track, or by authoring an ad-hoc dynamic Workflow — keep these rules so
+the skill stays authoritative and the run stays honest:
 
-This single-context procedure is the v1. The same structure ports to an Opus 4.8 Workflow:
-a `pipeline` over the levels (carrying decisions between stages), `parallel` personas inside
-L0–L4, and a final synthesizer. In the Workflow form, **every level/persona agent writes
-its own file to `.pr-review/findings/`** and the synthesizer agent reads that directory —
-so the per-persona findings (with `raised_by`) survive as artifacts and the report is not
-the only output. Pass the user-chosen model to every `agent()` call.
+- **Defer all content to this skill.** Any subagent/workflow you spawn must READ this
+  SKILL.md (and the relevant `references/`, `personas/`) and apply it. Do **not** re-encode
+  the level definitions, severity rules, or output format into the spawning prompt — that
+  freezes a stale copy and loses the skill's nuance. Pass only: which manuscript, which
+  journal, which slice of the work, and where to write.
+- **Contamination guard.** Pass only paths and settings to a subagent — never the paper's
+  topic, claims, notation, prior findings, or this conversation. Every agent rediscovers the
+  paper by reading it; that keeps the audit a true test.
+- **Strong model where it matters.** Mathematics (L5 + MV) and the final synthesis need a
+  strong model (Opus). Synthesis discipline — unbroken tables, no "correct" verdicts,
+  actually writing the report file, the self-verify pass — degrades on weak models; treat
+  the synthesizer's model as the quality gate for the report.
+- **References must be covered, not sampled.** A single agent web-verifying a whole
+  bibliography runs out of budget and silently checks a handful. If you parallelize REF,
+  split the bibliography into batches so every entry is web-verified; otherwise say in
+  Coverage how many entries were actually checked.
+- **Isolate outputs per run.** If you persist findings to disk, give each run its own
+  directory (e.g. `.pr-review/runs/<timestamp>/`); never let two runs share one `findings/`.
+- **Synthesis must fold in everything.** When findings are many, a single synthesizer can
+  silently drop whole levels. Ensure every level/track is consolidated (split the synthesis
+  if needed) and self-verify the tables before saving.
 
-## Known v1 implementation pitfalls (fix these when running)
-
-These were observed on the first real run and must not recur:
-1. **Report not written to disk.** The audit must write `report.md` (inside the run dir)
-   itself. Also: never let two runs share a `findings/` dir — use the per-run timestamped
-   directory above, or a finished run's files get overwritten by the next.
-2. **`raised_by` lost in synthesis.** The synthesizer dropped the persona column, so the
-   report read as if everyone agreed. Persist per-persona findings files AND keep the
-   `raised_by` column in Part A.
-3. **Math not actually verified.** A light model plus a consistency-only L5 prompt produced
-   "not checked" for nearly all derivations. Use Opus for the math, apply the embedded
-   equation-audit checklist (in `references/math-verification.md`), run the MV track at
-   `standard`/`deep`, and re-derive load-bearing steps. Do not rely on an external skill.
-
-## Running as a Workflow — use the bundled script
-
-The v2 execution form (dispatcher-split: read-the-whole-paper / evaluate-only-your-block)
-is a ready-to-run script at **`workflow/run.js`** in this skill. Invoking the skill does
-NOT auto-start a Workflow — you (the orchestrator) start it with the Workflow tool:
-
-1. Generate a timestamp yourself — Workflow scripts cannot call `Date.now()`. Shell:
-   `date +%Y-%m-%d-%H%M` (add seconds if two runs may start in the same minute).
-2. Call the Workflow tool with `{ scriptPath: "<this skill>/workflow/run.js", args: { … } }`.
-   This is a **dynamic Workflow** (scriptPath, not a saved named workflow); you may edit
-   `workflow/run.js` and re-invoke it freely.
-   `args` (pass as a real JSON object; the script also tolerates a JSON string):
-   - `tex` — **REQUIRED**, absolute path to the manuscript `.tex`. The skill is
-     paper-agnostic and carries no default manuscript; omitting `tex` throws.
-   - `stamp` — **REQUIRED in practice**, the timestamp `date +%Y-%m-%d-%H%M` (else output
-     lands in `runs/unstamped/` and a second run overwrites it).
-   - `skill` (this skill's root), `model` (default `haiku`), `synthModel` (default `opus`),
-     `journal` (default `PRB`), `math`/`ref` (`off`/`standard`/`deep`, default `standard`),
-     `maxchunk` (default 6). For an all-Opus audit pass `model: "opus"` (and `synthModel`
-     stays `opus`).
-   **Caution:** pass `args` as an object — if it is sent as a string and the script could
-   not parse it, every default kicks in (model→haiku, stamp→unstamped), silently giving a
-   non-Opus run in the wrong directory. Verify the run dir and model note in the report
-   header afterward.
-
-The script: one **Dispatcher** reads the whole paper and returns persona selection + a
-per-level workmap (line ranges) + a glossary; L0/L1 run whole-paper × persona; L2–L6 fan
-out per workmap block × persona (each agent **reads the whole paper but evaluates only its
-block**); a **drift sweep** reduces the per-block extraction tables to cross-section drift;
-MV/REF tracks run per intensity; a **synthesizer** consolidates everything into one
-per-granularity-table `report.md`. Output lands in `.pr-review/runs/<stamp>/`.
-
-### Operational guidance (learned from real runs)
-
-- **Collect cheap, synthesize carefully — split the model.** Finding-collection agents work
-  well on Haiku; the synthesizer's discipline (unbroken tables, no "correct" verdicts,
-  actually *writing* the report file) was reliable only on **Opus**. The script defaults to
-  `model: haiku` for collection and `synthModel: opus` for synthesis. Override only with
-  reason. For a serious audit, raise the collection model too.
-- **Some rules are structural (models obey them), some are discipline (they don't).** id
-  scheme `<granularity>#<AXIS>-NNN` held up even on Haiku. But the no-raw-`|`-in-cells rule,
-  the never-declare-correct rule, and "actually write the file" were only honored reliably
-  on Opus. Treat the synthesizer model as the quality gate for the *report*, not the
-  *findings*.
-- **Subagent Write may be blocked.** In some harnesses subagents cannot use the Write tool
-  and must fall back to a shell heredoc to create files — the prompts allow for this. If a
-  run leaves `findings/` populated but no `report.md`, just re-run the synthesizer alone
-  pointed at that run dir (read all of `findings/`, write `report.md`). No need to redo the
-  whole audit.
-- **Never let two runs share a `findings/`.** Always pass a fresh `stamp`. (Two concurrent
-  runs writing the same directory will overwrite each other — observed and the reason the
-  per-run dir exists.)
-- **Contamination guard.** Pass only paths and settings in `args`. Never inject the paper's
-  topic, claims, notation, prior findings, or the surrounding conversation — every agent
-  rediscovers the paper by reading it. This keeps the audit a true test of the skill.
-- **REF must cover every entry — split it too.** A single REF agent web-verifying the whole
-  bibliography runs out of budget and silently samples (observed: 7 of ~70 entries). The
-  script's REF phase therefore runs a REF-dispatcher that batches the bibliography (≈8 keys
-  per batch via `refbatch`) and chunks the cite sites, then fans out so that *every* entry
-  is web-verified and every cite site's placement is checked. Tune `refbatch` for very large
-  bibliographies.
+These are lessons, not a fixed pipeline. The skill defines *what* to check and *how to
+report*; how you execute it (inline or parallel) is your call, but the skill remains the
+authority.
